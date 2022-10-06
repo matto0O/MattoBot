@@ -15,13 +15,5 @@ async def on_ready():
     print('Siema. Jestem {0.user}'.format(client))
 
 
-# @client.event
-# async def on_message(message):
-#     print(message.content)
-#     if message.author == client.user:
-#         return
-#     if message.content.startswith('!hello'):
-#         await message.channel.send('Hello!')
-
 with open("token") as file:
     client.run(file.readline())

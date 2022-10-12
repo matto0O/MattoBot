@@ -1,4 +1,4 @@
-import discord
+import discord as dc
 import asyncio
 from discord.ext import commands
 import youtube_dl
@@ -81,7 +81,7 @@ class Music(commands.Cog):
             finally:
                 await ctx.send("Teraz leci: \n{}".format(info["title"]))
                 url2 = info['formats'][0]['url']
-                source = await discord.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
+                source = await dc.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
                 await self.join(ctx)
                 self.run(ctx, source)
 
@@ -112,5 +112,4 @@ class Music(commands.Cog):
 
 
 def setup(client):
-    import asyncio
     asyncio.run(client.add_cog(Music(client)))

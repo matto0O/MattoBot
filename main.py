@@ -31,6 +31,9 @@ async def on_presence_update(before, after):
     for user in client.get_all_members():
         if gajs_role in user.roles:
             gajs.append(user)
+    if after in gajs:
+        print(after.activities)
+        return        
     for user in gajs:
         if user.status not in [dc.Status.online, dc.Status.idle]:
             return   

@@ -11,6 +11,7 @@ class SoundQueue:
 
     def enqueue(self, elem):
         self.q.append(elem)
+        print(self.q)
 
     def dequeue(self):
         try:
@@ -23,6 +24,9 @@ class SoundQueue:
 
     def empty(self):
         self.q.clear()
+
+    def isEmpty(self):
+        return len(self.q) == 0    
 
 
 class Music(commands.Cog):
@@ -51,6 +55,13 @@ class Music(commands.Cog):
             ctx.voice_client.stop()
 
     @commands.command()
+    async def skip(self, ctx):
+        await self.stop(ctx)
+        if not self.queue.isEmpty():
+            await self.start(ctx, self.queue.dequeue())
+               
+
+    @commands.command()
     async def dc(self, ctx):
         if ctx.voice_client is not None and ctx.author.voice.channel == ctx.voice_client.channel:
             self.queue.empty()
@@ -58,39 +69,74 @@ class Music(commands.Cog):
         else:
             await ctx.send("Z A M K N I J  R Y J")
 
-    def run(self, ctx, src):
-        ctx.voice_client.play(src, after=(lambda x=None: self.check_for_next(ctx)))      
+    async def run(self, ctx, src):
+        ctx.voice_client.play(src, after=(lambda x=None: asyncio.run_coroutine_threadsafe(self.check_for_next(ctx), self.client.loop).result()))     
 
-    def check_for_next(self, ctx):
+    async def check_for_next(self, ctx):
         if self.queue.size() > 0:
-            asyncio.run(self.play(ctx, self.queue.dequeue()))
+            await self.start(ctx, self.queue.dequeue())
+
+    def prepare(self, ctx, query):
+        YDL_OPTIONS = {'format': "bestaudio", 'noplaylist':'True'}
+        with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
+            if len(query.split(' ')) == 1:
+                return ydl.extract_info(query, download=False)  
+            new_url = "https://www.youtube.com{}".format(YoutubeSearch(query, max_results=1).to_dict()[0]["url_suffix"])
+            return ydl.extract_info(new_url, download=False)
+
+    async def start(self, ctx, info):
+        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3',
+                          'options': '-vn'}
+        await ctx.send("Teraz leci: \n{}".format(info["title"]))
+        url2 = info['formats'][0]['url']
+        source = await dc.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
+        await self.join(ctx)
+        await self.run(ctx, source)                         
 
     @commands.command()
     async def play(self, ctx, url, *args):
-        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3',
-                          'options': '-vn'}
-        YDL_OPTIONS = {'format': "bestaudio", 'noplaylist':'True'}
-        with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
-            try:
-                info = ydl.extract_info(url, download=False)  
-            except youtube_dl.utils.DownloadError:
-                if len(args) == 0:
-                    args = []  
-                new_url = "https://www.youtube.com{}".format(YoutubeSearch(url + ' '.join(args), max_results=1).to_dict()[0]["url_suffix"])
-                info = ydl.extract_info(new_url, download=False)     
-            finally:
-                await ctx.send("Teraz leci: \n{}".format(info["title"]))
-                url2 = info['formats'][0]['url']
-                source = await dc.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
-                await self.join(ctx)
-                self.run(ctx, source)
+        query = url
+        if len(args) > 0:
+            query += ' '.join(args)
+        result = self.prepare(ctx, query)
+        await self.start(ctx, result)
 
     @commands.command()
-    async def add(self, ctx, url):
+    async def add(self, ctx, url, *args):
+        query = url
+        if len(args) > 0:
+            query += ' '.join(args)
         if ctx.voice_client is None or not ctx.voice_client.is_playing():
-            await self.play(ctx, url)
+            await self.play(ctx, query)
         else:
-            self.queue.enqueue(url)
+            self.queue.enqueue(self.prepare(ctx, query))
+
+    @commands.command()
+    async def this(self, ctx):
+        if ctx.voice_client is None or not ctx.voice_client.is_playing():
+            for activity in ctx.author.activities:
+                if str(activity) == "Spotify":
+                    spotify_song = activity.title
+                    for artist in activity.artists:
+                        spotify_song += " {}".format(artist)
+                    await self.play(ctx, spotify_song)
+                    break              
+
+    @commands.command()
+    async def sporting(self, ctx):
+        if ctx.voice_client is None or not ctx.voice_client.is_playing():
+            await self.play(ctx, "sporting anthem")
+
+    @commands.command()
+    async def lm(self, ctx):
+        if ctx.voice_client is None or not ctx.voice_client.is_playing():
+            await self.play(ctx, "champions league anthem")
+
+    @commands.command()
+    async def le(self, ctx):
+        if ctx.voice_client is None or not ctx.voice_client.is_playing():
+            await self.play(ctx, "europa league anthem")            
+
 
     @commands.command()
     async def essa(self, ctx):

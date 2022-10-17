@@ -13,7 +13,7 @@ for i in range(len(cogs)):
 
 @client.event
 async def on_ready():
-    print('Siemafsad. Jestem {0.user}'.format(client))
+    print('Siema. Jestem {0.user}'.format(client))
 
 @client.event
 async def on_voice_state_update(member, before, after):
@@ -37,7 +37,7 @@ async def on_presence_update(before, after):
     for user in gajs:
         if user.status not in [dc.Status.online, dc.Status.idle]:
             return   
-    channel = dc.utils.find(lambda c: c.name == 'liga-nos', this_guild.channels)
+    channel = dc.utils.find(lambda c: c.name == 'la-liga2', this_guild.channels)
     # await channel.send("{} wszyscy som chodzcie grac".format(gajs_role.mention))          
     
 

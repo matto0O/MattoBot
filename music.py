@@ -1,3 +1,4 @@
+from http.client import HTTPException
 import discord as dc
 import asyncio
 from discord.ext import commands
@@ -11,11 +12,10 @@ class SoundQueue:
 
     def enqueue(self, elem):
         self.q.append(elem)
-        print(self.q)
 
-    def dequeue(self):
+    def dequeue(self, elem=0):
         try:
-            return self.q.pop(0)
+            return self.q.pop(elem)
         except IndexError:
             return None
 
@@ -26,8 +26,14 @@ class SoundQueue:
         self.q.clear()
 
     def isEmpty(self):
-        return len(self.q) == 0    
+        return len(self.q) == 0
 
+    def getQueueState(self):
+        queueString = ""
+        for index, elem in enumerate(self.q):
+            duration = int(elem['duration'])
+            queueString += "{}. {} ({}:{})\n".format(index+1, elem['title'], int(duration/60), duration%60)
+        return queueString.strip()  
 
 class Music(commands.Cog):
     def __init__(self, client):
@@ -49,18 +55,29 @@ class Music(commands.Cog):
 
     @commands.command()
     async def stop(self, ctx):
-        if ctx.author.voice.channel is not ctx.voice_client.channel or not ctx.voice_client.is_playing:
+        if ctx.author.voice.channel is not ctx.voice_client.channel or not ctx.voice_client.is_playing():
             await ctx.send("Tam nikogo nie ma")
         else:
+            self.queue.empty()
             ctx.voice_client.stop()
 
     @commands.command()
-    async def skip(self, ctx):
-        await self.stop(ctx)
-        if not self.queue.isEmpty():
-            await self.start(ctx, self.queue.dequeue())
-               
+    async def pause(self, ctx):
+        if ctx.author.voice.channel is not ctx.voice_client.channel or not ctx.voice_client.is_playing():
+            await ctx.send("Tam nikogo nie ma")
+        else:
+            ctx.voice_client.pause()            
 
+    @commands.command()
+    async def resume(self, ctx):
+        if ctx.voice_client is not None and ctx.author.voice.channel == ctx.voice_client.channel and not ctx.voice_client.is_playing():
+            ctx.voice_client.resume()       
+
+    @commands.command()
+    async def skip(self, ctx):
+        if ctx.voice_client is not None and ctx.author.voice.channel == ctx.voice_client.channel:
+            ctx.voice_client.stop()
+               
     @commands.command()
     async def dc(self, ctx):
         if ctx.voice_client is not None and ctx.author.voice.channel == ctx.voice_client.channel:
@@ -79,19 +96,20 @@ class Music(commands.Cog):
     def prepare(self, ctx, query):
         YDL_OPTIONS = {'format': "bestaudio", 'noplaylist':'True'}
         with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
-            if len(query.split(' ')) == 1:
-                return ydl.extract_info(query, download=False)  
-            new_url = "https://www.youtube.com{}".format(YoutubeSearch(query, max_results=1).to_dict()[0]["url_suffix"])
-            return ydl.extract_info(new_url, download=False)
+            try:
+                return ydl.extract_info(query, download=False) 
+            except youtube_dl.utils.DownloadError:
+                new_url = "https://www.youtube.com{}".format(YoutubeSearch(query, max_results=1).to_dict()[0]["url_suffix"])
+                return ydl.extract_info(new_url, download=False)
 
     async def start(self, ctx, info):
         FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3',
                           'options': '-vn'}
-        await ctx.send("Teraz leci: \n{}".format(info["title"]))
         url2 = info['formats'][0]['url']
         source = await dc.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
         await self.join(ctx)
-        await self.run(ctx, source)                         
+        await self.run(ctx, source)
+        await ctx.send("Teraz leci: \n{}".format(info["title"]))                         
 
     @commands.command()
     async def play(self, ctx, url, *args):
@@ -105,7 +123,7 @@ class Music(commands.Cog):
     async def add(self, ctx, url, *args):
         query = url
         if len(args) > 0:
-            query += ' '.join(args)
+            query += ' ' + ' '.join(args)
         if ctx.voice_client is None or not ctx.voice_client.is_playing():
             await self.play(ctx, query)
         else:
@@ -135,7 +153,25 @@ class Music(commands.Cog):
     @commands.command()
     async def le(self, ctx):
         if ctx.voice_client is None or not ctx.voice_client.is_playing():
-            await self.play(ctx, "europa league anthem")            
+            await self.play(ctx, "europa league anthem")  
+
+    @commands.command()
+    async def queue(self, ctx):
+        try:
+            await ctx.send(self.queue.getQueueState())
+        except HTTPException:
+            await ctx.send("Ludzie, tu nikogo nie ma")    
+
+    @commands.command()
+    async def dequeue(self, ctx, arg=''):
+        try:
+            index = int(arg)
+        except:
+            await ctx.send("Chłopie, zdecyduj się!")
+        if index > self.queue.size() or index < 1:
+            await ctx.send("Chłopie, zdecyduj się!")
+        else:
+            self.queue.dequeue(index-1)
 
 
     @commands.command()

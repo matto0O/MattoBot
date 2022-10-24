@@ -128,26 +128,27 @@ class Fm(commands.Cog):
     @commands.has_role('gajs')
     @commands.command()
     async def direct(self, ctx):
-        stats = dict()
-        gajs_role = dc.utils.find(lambda r: r.name == 'gajs', ctx.guild.roles)
-        gajs = []
-        for user in ctx.guild.members:
-            if gajs_role in user.roles:
-                gajs.append(user)
-        for user in gajs:
-            stats[user.mention] = Player(user)
-        with open("results.txt", "r", encoding="UTF-8") as file:
-            for game in file.readlines():
-                split = game.split(' ')
-                stats[split[0]].played(split[2], True)
-                stats[split[1]].played(split[2], False)
-        com = PrettyTable(['.', "{:25s}".format("Nick"), 'PTS', 'GP', 'P/G', 'W', 'D', 'L', 'GF', 'GA', 'GD'])
-        for player in gajs:
-            x = stats[player.mention]
-            stats[player.mention] = [x.mention, x.wins*3 + x.draws, x.games, 0 if x.games==0 else round((x.wins*3 + x.draws)/x.games, 2), x.wins, x.draws, x.losses, x.gf, x.ga, x.gf - x.ga]
-        for enum, x in enumerate(sorted(stats.values(), key=itemgetter(1, 3, 9, 7, 0), reverse=True)):
-            com.add_row([enum+1] + x) 
-        await ctx.send(com)    
+        try:
+            stats = dict()
+            gajs_role = dc.utils.find(lambda r: r.name == 'gajs', ctx.guild.roles)
+            gajs = []
+            for user in ctx.guild.members:
+                if gajs_role in user.roles:
+                    gajs.append(user)
+            for user in gajs:
+                stats[user.mention] = Player(user)
+            with open("results.txt", "r", encoding="UTF-8") as file:
+                for game in file.readlines():
+                    split = game.split(' ')
+                    stats[split[0]].played(split[2], True)
+                    stats[split[1]].played(split[2], False)
+            com = PrettyTable(['.', "{:25s}".format("Nick"), 'PTS', 'GP', 'P/G', 'W', 'D', 'L', 'GF', 'GA', 'GD'])
+            for player in gajs:
+                x = stats[player.mention]
+                stats[player.mention] = [x.mention, x.wins*3 + x.draws, x.games, 0 if x.games==0 else round((x.wins*3 + x.draws)/x.games, 2), x.wins, x.draws, x.losses, x.gf, x.ga, x.gf - x.ga]
+            for enum, x in enumerate(sorted(stats.values(), key=itemgetter(1, 3, 9, 7, 0), reverse=True)):
+                com.add_row([enum+1] + x) 
+            await ctx.send(com)    
         except Exception as e:
             log("fm.direct", '', e)
 

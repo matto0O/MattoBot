@@ -2,10 +2,11 @@ import discord as dc
 from discord.ext import commands
 import music
 import football
+import fm
 
 client = commands.Bot(command_prefix='!', intents=dc.Intents.all())
 
-cogs = [music, football]
+cogs = [music, football, fm]
 
 for i in range(len(cogs)):
     cogs[i].setup(client)

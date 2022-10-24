@@ -4,6 +4,7 @@ import asyncio
 from discord.ext import commands
 import youtube_dl
 from youtube_search import YoutubeSearch
+from logs import log
 
 
 class SoundQueue:
@@ -94,22 +95,28 @@ class Music(commands.Cog):
             await self.start(ctx, self.queue.dequeue())
 
     def prepare(self, ctx, query):
-        YDL_OPTIONS = {'format': "bestaudio", 'noplaylist':'True'}
-        with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
-            try:
-                return ydl.extract_info(query, download=False) 
-            except youtube_dl.utils.DownloadError:
-                new_url = "https://www.youtube.com{}".format(YoutubeSearch(query, max_results=1).to_dict()[0]["url_suffix"])
-                return ydl.extract_info(new_url, download=False)
+        try:
+            YDL_OPTIONS = {'format': "bestaudio", 'noplaylist':'True'}
+            with youtube_dl.YoutubeDL(YDL_OPTIONS) as ydl:
+                try:
+                    return ydl.extract_info(query, download=False) 
+                except youtube_dl.utils.DownloadError:
+                    new_url = "https://www.youtube.com{}".format(YoutubeSearch(query, max_results=1).to_dict()[0]["url_suffix"])
+                    return ydl.extract_info(new_url, download=False)
+        except Exception as e:
+            log("music.prepare", query, e)
 
     async def start(self, ctx, info):
-        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3',
-                          'options': '-vn'}
-        url2 = info['formats'][0]['url']
-        source = await dc.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
-        await self.join(ctx)
-        await self.run(ctx, source)
-        await ctx.send("Teraz leci: \n{}".format(info["title"]))                         
+        try:
+            FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3',
+                            'options': '-vn'}
+            url2 = info['formats'][0]['url']
+            source = await dc.FFmpegOpusAudio.from_probe(url2, **FFMPEG_OPTIONS)
+            await self.join(ctx)
+            await self.run(ctx, source)
+            await ctx.send("Teraz leci: \n{}".format(info["title"]))   
+        except Exception as e:
+            log("music.prepare", str(info), e)                      
 
     @commands.command()
     async def play(self, ctx, url, *args):
@@ -140,16 +147,19 @@ class Music(commands.Cog):
                     await self.play(ctx, spotify_song)
                     break              
 
+    @commands.has_role('gajs')                
     @commands.command()
     async def sporting(self, ctx):
         if ctx.voice_client is None or not ctx.voice_client.is_playing():
             await self.play(ctx, "sporting anthem")
-
+    
+    @commands.has_role('gajs')
     @commands.command()
     async def lm(self, ctx):
         if ctx.voice_client is None or not ctx.voice_client.is_playing():
             await self.play(ctx, "champions league anthem")
 
+    @commands.has_role('gajs')
     @commands.command()
     async def le(self, ctx):
         if ctx.voice_client is None or not ctx.voice_client.is_playing():

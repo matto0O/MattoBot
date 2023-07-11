@@ -1,3 +1,7 @@
 league_request.txt
 tokens
 results.txt
+errors.txt
+/cards/*
+*.jpg
+*.pyc

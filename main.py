@@ -3,7 +3,7 @@ from discord.ext import commands
 import music
 import football
 import fm
-import poker
+import poker_files.poker as poker
 
 client = commands.Bot(command_prefix='!', intents=dc.Intents.all())
 

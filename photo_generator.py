@@ -14,8 +14,8 @@ def generate(width: int, height: int, message: str, name:str):
     img = img.save(name)
 
 def generateCard(value, color, card_clr):
-    image = Image.new(mode="RGBA", size=(200, 300), color=card_clr)
-    txt = Image.new(mode="RGBA", size=(200, 300), color=(255,255,255,0))
+    image = Image.new(mode="RGBA", size=(100, 150), color=card_clr)
+    txt = Image.new(mode="RGBA", size=(100, 150), color=(255,255,255,0))
     transparent_helper = ImageDraw.Draw(txt)
     letter_position = (40, 25)
     color_position = (60, 80)

@@ -13,29 +13,27 @@ class Card:
         self.rank_value = rank_value
         self.rank = rank
         self.color = color
-        self.file = None
+        self.file = self.card_url(find)
 
+    def card_url(self, find) -> dc.File:
         if find:
             try:
-                with open(f"cards/{rank}{color}", 'rb') as file:
-                    img = dc.File(file)
-                    self.file = img
+                with open(f"cards/{self.rank}{self.color}", 'rb') as file:
+                    return dc.File(file)
             except FileNotFoundError:
                 pass
 
-        else:
-            match self.color:
-                case 's':
-                    card_clr = SPADE_CLR
-                case 'h':
-                    card_clr = HEART_CLR
-                case 'd':
-                    card_clr = DIAMOND_CLR
-                case 'c':
-                    card_clr = CLUB_CLR
-            with open(generateCard(self.rank, self.color, card_clr), 'rb') as file:
-                img = dc.File(file)
-                self.file = img
+        match self.color:
+            case 's':
+                card_clr = SPADE_CLR
+            case 'h':
+                card_clr = HEART_CLR
+            case 'd':
+                card_clr = DIAMOND_CLR
+            case 'c':
+                card_clr = CLUB_CLR
+        with open(generateCard(self.rank, self.color, card_clr), 'rb') as file:
+            return dc.File(file)
 
     def __repr__(self):
         match self.color:
@@ -68,7 +66,7 @@ class Deck:
         self.club_clr = CLUB_CLR
         self.cards = []
 
-        folder_path = 'cards'
+        folder_path = 'poker_files/cards'
         files = os.listdir(folder_path)
 
         if not force_generate:
@@ -96,5 +94,8 @@ class Deck:
             self.cards.append(Card(rank, e, 'd', False))
             self.cards.append(Card(rank, e, 'c', False))
 
-    def get_random_card(self):
-        return self.cards.pop(random.randint(0,51))
+    def shuffle(self):
+        random.shuffle(self.cards)
+
+    def get_card(self) -> Card:
+        return self.cards.pop(0)

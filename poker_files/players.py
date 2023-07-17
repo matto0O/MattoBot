@@ -13,7 +13,6 @@ class Player:
         self.channel = channel
         self.status = PlayerStatus.PLAYING
         self.hand = []
-        self.channel = None
 
     def went_broke(self):
         self.status = PlayerStatus.BROKE
@@ -27,3 +26,6 @@ class Player:
     def reset_status(self):
         self.status = PlayerStatus.PLAYING
         self.hand = []
+
+    def __str__(self):
+        return self.player.name

@@ -24,7 +24,8 @@ class Player:
         self.status = PlayerStatus.ALL_IN
 
     def reset_status(self):
-        self.status = PlayerStatus.PLAYING
+        if self.status != PlayerStatus.BROKE:
+            self.status = PlayerStatus.PLAYING
         self.hand = []
 
     def __str__(self):

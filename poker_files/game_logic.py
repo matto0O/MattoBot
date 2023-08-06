@@ -1,6 +1,6 @@
 from discord.ext import commands
 import asyncio
-from .cards import Deck
+from .cards import Deck, Hand
 from .players import *
 
 
@@ -43,11 +43,17 @@ class Game:
 
     def reset(self):
         self.pot = Pot(self.player_data)
-        self.dealer_index = (self.dealer_index + 1) % len(self.player_data)
-        while self.player_data[self.dealer_index].status != PlayerStatus.BROKE:
-            self.dealer_index = self.dealer_index % len(self.player_data)
+        self.move_dealer()
+        for player in self.player_data:
+            player.reset_status()
+        i = len(self.player_data) - 1
+        while self.player_data[self.dealer_index].status == PlayerStatus.BROKE:
+            self.move_dealer()
+            i -= 1
+            if i == 0: return False
         self.temp_deck = self.deck
         self.temp_deck.shuffle()
+        return True
 
     async def announce(self, text):
         for player in self.player_data:
@@ -57,12 +63,12 @@ class Game:
         message = ''
         for i, player in enumerate(self.player_data):
             flag = ''
-            if i==self.bb:
-                flag = 'BB'
-            elif i==self.sb:
-                flag = 'SB'
-            elif i==self.dealer_index:
-                flag = 'D'
+            if i==self.dealer_index:
+                flag = 'D '
+            if i==(self.dealer_index + 2) % len(self.player_data):
+                flag += 'BB'
+            elif i==(self.dealer_index + 1) % len(self.player_data):
+                flag += 'SB'
             if i==self.turn_index:
                 message += f'    -->'
             message += f'{flag} {player} {player.stack} '
@@ -97,20 +103,21 @@ class Game:
 
     async def flop(self):
         self.temp_deck.get_card()
-        flop = [self.temp_deck.get_card().file for _ in range(3)]
+        flop = [self.temp_deck.get_card() for _ in range(3)]
         self.table_cards = flop
         for player in self.player_data:
-            await player.channel.send(files=flop)
+            await player.channel.send(files=[card.file for card in flop])
 
     async def turn_river(self):
         self.temp_deck.get_card()
         card = self.temp_deck.get_card()
         self.table_cards.append(card)
         for player in self.player_data:
-            await player.channel.send(file=card)
+            await player.channel.send(file=card.file)
 
     def move_dealer(self):
-        self.dealer_index
+        self.dealer_index = (self.dealer_index + 1) % len(self.player_data)
+        self.turn_index = (self.dealer_index + 3) % len(self.player_data)
 
     async def get_available_moves(self, player: Player):
         moves = ["!fold", "!all-in"]
@@ -134,6 +141,9 @@ class Game:
         await player.channel.send(message)
         return moves
 
+    async def show_hand(self, player):
+        await player.channel.send(content=f"{player}'s hand:\n", files=[card.file for card in player.hand])
+
     async def betting_phase(self, client, starting_index = 1):
         async def over_check():
             if len(self.turn_queue) == 1:
@@ -155,21 +165,16 @@ class Game:
 
                 def check(m):
                     if not player.player==m.author:
-                        print("false1")
-                        print(player.player, m.author)
+                        print("false1", player.player, m.author)
                         return False
                     if m.channel != player.channel:
-                        player.channel.send("Please, make your move here.")
-                        print("false2")
-                        print(player.channel, m.channel)
+                        print("false2", player.channel, m.channel)
                         return False
                     if not m.content.startswith("!"):
-                        print("false3")
-                        print(m.content)
+                        print("false3", m.content)
                         return False
                     if any(action in m.content for action in moves):
                         return True
-                    player.channel.send("Invalid action")
                     return False
 
                 try:
@@ -190,7 +195,7 @@ class Game:
     async def play(self, client: commands.Bot):
         self.turn_queue = list(filter(lambda x: x.status==PlayerStatus.PLAYING,self.player_data))
         
-        while len(self.turn_queue) > 1:
+        while len(self.turn_queue) > 1 and self.reset():
             await self.deal()
             self.pot = Pot(self.turn_queue, self.sb + self.bb)
             sb = list(self.pot.contributions.keys())[(self.dealer_index + 1) % len(self.pot.contributions)]
@@ -211,7 +216,20 @@ class Game:
 
                         await self.turn_river()
                         if not await self.betting_phase(client):
-                            pass
-                            # TODO eval hands
-            self.reset()
+                            hands = []
+                            for player in list(self.pot.contributions.keys()):
+                               hands.append(Hand(self.table_cards, player))
+                            hands.sort(reverse=True)
+                            winners = [hands[0]]
+                            for i in range(1, len(hands)):
+                                if hands[0] == hands[i]:
+                                    winners.append(hands[i])
+                                else: break
+                            won_amount = int(self.pot.total / len(winners))     # tip for the dealer :DDD
+                            for hand in winners:
+                                hand.player.stack += won_amount
+                                await self.announce(f"{hand.player} won {won_amount} of the pot")
+                                await self.show_hand(hand.player)
+                            
+
         await self.announce(f"{self.turn_queue[0]} is the winner!")

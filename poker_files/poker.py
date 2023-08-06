@@ -1,7 +1,6 @@
 from discord.ext import commands
 import discord as dc
 import asyncio
-from .cards import Deck
 from .players import *
 from .game_logic import *
 
@@ -66,9 +65,12 @@ class Poker(commands.Cog):
     @commands.command()
     async def fold(self, ctx):
         player = self.game.player_data[self.game.turn_index]
-        self.game.turn_queue.remove(player)
-        player.folded()
-        self.game.pot.folded(player)
+        try:
+            self.game.turn_queue.remove(player)
+            player.folded()
+            self.game.pot.folded(player)
+        except ValueError:
+            await player.channel.send("You are not in the pot")
 
     @commands.command()
     async def check(self, ctx):

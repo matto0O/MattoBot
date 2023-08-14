@@ -1,6 +1,8 @@
 from discord.ext import commands
+import discord as dc
 import asyncio
 from .cards import Deck, Hand
+from photo_generator import generateCommunityCards
 from .players import *
 
 
@@ -98,22 +100,21 @@ class Game:
                 player = self.player_data[i%len(self.player_data)]
                 if player.status != PlayerStatus.BROKE:
                     player.hand.append(self.temp_deck.get_card())
-        for player in (self.player_data):
-            await player.channel.send(files=[card.file for card in player.hand])
+        for player in self.player_data:
+            await player.channel.send(files=[dc.file.File(card.file) for card in player.hand])
 
     async def flop(self):
         self.temp_deck.get_card()
         flop = [self.temp_deck.get_card() for _ in range(3)]
         self.table_cards = flop
         for player in self.player_data:
-            await player.channel.send(files=[card.file for card in flop])
+            await player.channel.send(file=dc.file.File(generateCommunityCards(flop)))
 
     async def turn_river(self):
         self.temp_deck.get_card()
-        card = self.temp_deck.get_card()
-        self.table_cards.append(card)
+        self.table_cards.append(self.temp_deck.get_card())
         for player in self.player_data:
-            await player.channel.send(file=card.file)
+            await player.channel.send(file=dc.file.File(generateCommunityCards(self.table_cards)))
 
     def move_dealer(self):
         self.dealer_index = (self.dealer_index + 1) % len(self.player_data)
@@ -142,7 +143,7 @@ class Game:
         return moves
 
     async def show_hand(self, player):
-        await player.channel.send(content=f"{player}'s hand:\n", files=[card.file for card in player.hand])
+        await player.channel.send(content=f"{player}'s hand:\n", files=[dc.file.File(card.file) for card in player.hand])
 
     async def betting_phase(self, client, starting_index = 1):
         async def over_check():

@@ -6,35 +6,16 @@ from .players import Player
 
 SPADE_CLR = (0, 0, 0, 100)
 HEART_CLR = (199, 54, 44, 100)
-DIAMOND_CLR = (34, 189, 132, 100)
+DIAMOND_CLR = (52, 165, 243, 100)
 CLUB_CLR = (145, 29, 124, 100)
+RANK_VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
 
 class Card:
-    def __init__(self, rank, rank_value, color, find=True):
+    def __init__(self, rank, rank_value, color):
         self.rank_value = rank_value
         self.rank = rank
         self.color = color
-        self.file = self.card_url(find)
-
-    def card_url(self, find) -> dc.File:
-        if find:
-            try:
-                with open(f"cards/{self.rank}{self.color}", 'rb') as file:
-                    return dc.File(file)
-            except FileNotFoundError:
-                pass
-
-        match self.color:
-            case 's':
-                card_clr = SPADE_CLR
-            case 'h':
-                card_clr = HEART_CLR
-            case 'd':
-                card_clr = DIAMOND_CLR
-            case 'c':
-                card_clr = CLUB_CLR
-        with open(generateCard(self.rank, self.color, card_clr), 'rb') as file:
-            return dc.File(file)
+        self.file = f"poker_files/cards/{self.rank}{self.color}.jpg"
 
     def __repr__(self):
         match self.color:
@@ -63,7 +44,6 @@ class Card:
 
 class Deck:
     def __init__(self, force_generate=False):
-        RANK_VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
         self.spade_clr = SPADE_CLR
         self.heart_clr = HEART_CLR
         self.diamond_clr = DIAMOND_CLR

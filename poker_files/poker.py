@@ -1,8 +1,10 @@
 from discord.ext import commands
 import discord as dc
 import asyncio
+from photo_generator import generateCard, generateReverse, generateCommunityCards
 from .players import *
 from .game_logic import *
+from .cards import SPADE_CLR, CLUB_CLR, HEART_CLR, DIAMOND_CLR, RANK_VALUES
 
 class Poker(commands.Cog):
     def __init__(self, client):
@@ -23,6 +25,16 @@ class Poker(commands.Cog):
             self.at_the_table[ctx.author] = (False, None)
 
     async def start(self, ctx):
+        
+        try:
+            for rank in RANK_VALUES:
+                generateCard(rank, 's', SPADE_CLR)
+                generateCard(rank, 'h', HEART_CLR)
+                generateCard(rank, 'd', DIAMOND_CLR)
+                generateCard(rank, 'c', CLUB_CLR)
+        except: 
+            pass
+
         self.game = Game(self.at_the_table.items())
         await self.game.play(self.client)
 
@@ -75,6 +87,15 @@ class Poker(commands.Cog):
     @commands.command()
     async def check(self, ctx):
         pass
+
+    @commands.command()
+    async def test(self, ctx):
+        generateReverse(None)
+        await ctx.send(files=[dc.file.File(f"""poker_files/{generateCommunityCards(
+            "poker_files/cards/Ac.jpg",
+                                    "poker_files/cards/8h.jpg",
+                                      "poker_files/cards/4d.jpg",
+                                        "poker_files/cards/Js.jpg")}""")])
 
     @commands.command()
     async def call(self, ctx):

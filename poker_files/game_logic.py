@@ -27,7 +27,12 @@ class Pot:
 
     def to_call(self, player):
         return max(self.contributions.values()) - self.contributions[player]
-        
+    
+    def min_raise(self, bb):
+        min = max(self.contributions.values())
+        if min > bb:
+            return 2*min
+        return bb
 
 class Game:
     def __init__(self, players, stack=5000, small_blind=50, big_blind=100):
@@ -59,7 +64,7 @@ class Game:
 
     async def announce(self, text):
         for player in self.player_data:
-            await player.channel.send(text)
+            await player.channel.send(text, delete_after=60)
 
     async def game_state_announce(self):
         message = ''
@@ -81,6 +86,7 @@ class Game:
             finally:
                 message += '\n'
         
+        message += f'\n POT SIZE - {self.pot.total}'
         await self.announce(message)
             
     def change_turn(self):
@@ -124,22 +130,21 @@ class Game:
         moves = ["!fold", "!all-in"]
         message = "Available moves:\n > fold\n"
         to_call = self.pot.to_call(player)
+        min_raise = self.pot.min_raise(self.bb)
         if to_call == 0:
             moves.append("!check")
             message += " > check\n"
             moves.append("!raise")
-            message += f" > raise\n"
-        elif to_call < player.stack:
-            moves.append("!call")
-            moves.append("!raise")
-            message += f" > call ({to_call})\n"
-            message += f" > raise\n"
-        elif to_call == player.stack:
+            message += f" > raise (min: {min_raise})\n"
+        elif to_call <= player.stack:
             moves.append("!call")
             message += f" > call ({to_call})\n"
+            if min_raise < player.stack:
+                moves.append("!raise")
+                message += f" > raise (min: {min_raise})\n"
         message += f" > all-in ({player.stack})"
 
-        await player.channel.send(message)
+        await player.channel.send(message, delete_after=60)
         return moves
 
     async def show_hand(self, player):
@@ -156,6 +161,7 @@ class Game:
                 return True
             return False
         
+        instant_exit = False
         while len(self.turn_queue) > 1:
             order_range = range(self.dealer_index + starting_index, self.dealer_index + len(self.turn_queue) + starting_index)
             self.turn_queue = list(filter(lambda x: x.status==PlayerStatus.PLAYING,self.player_data))
@@ -175,6 +181,12 @@ class Game:
                         print("false3", m.content)
                         return False
                     if any(action in m.content for action in moves):
+                        content = m.content.split(' ')
+                        try:
+                            if content[0] == "!raise" and int(content[1]) < self.pot.min_raise(self.bb):
+                                return False
+                        except:
+                            return False
                         return True
                     return False
 
@@ -188,9 +200,9 @@ class Game:
                     self.turn_queue.remove(player)
                 if await over_check(): return True
                 self.change_turn()
-            
+                if len(set(self.pot.contributions.values())) == 1 and instant_exit: break
             if len(set(self.pot.contributions.values())) == 1: break
-
+            instant_exit = True
         return False
 
     async def play(self, client: commands.Bot):
@@ -209,11 +221,20 @@ class Game:
 
             if not await self.betting_phase(client, 3):
 
+                for player in self.pot.contributions.keys():
+                    self.pot.contributions[player] = 0
+
                 await self.flop()
                 if not await self.betting_phase(client):
+                    
+                    for player in self.pot.contributions.keys():
+                        self.pot.contributions[player] = 0
 
                     await self.turn_river()
                     if not await self.betting_phase(client):
+
+                        for player in self.pot.contributions.keys():
+                            self.pot.contributions[player] = 0
 
                         await self.turn_river()
                         if not await self.betting_phase(client):

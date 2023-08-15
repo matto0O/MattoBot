@@ -109,8 +109,10 @@ class Poker(commands.Cog):
 
     @commands.command(name="raise")
     async def _raise(self, ctx, amount):
+        amount = int(amount)
+        print("raise", amount)
         player = self.game.player_data[self.game.turn_index]
-        if player.stack < amount:
+        if player.stack < amount or amount < self.game.pot.min_raise(self.game.bb):
             return False
         player.stack -= amount
         self.game.pot.chip_in(player, amount)
